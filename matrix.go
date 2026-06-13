@@ -231,3 +231,15 @@ func (m Matrix[T]) Transpose() Matrix[T] {
 	return matrix
 
 }
+
+func (m Matrix[T]) Map(fn func(T) T) Matrix[T] {
+	result := NewEmptyMatrix[T](m.Rows, m.Cols)
+
+	for i := 0; i < m.Rows; i++ {
+		for j := 0; j < m.Cols; j++ {
+			result.Set(i, j, fn(m.At(i, j)))
+		}
+	}
+
+	return result
+}
