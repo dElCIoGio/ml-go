@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
 )
 
 type Matrix[T Number] struct {
@@ -48,6 +50,31 @@ func NewMatrix[T Number](data [][]T) Matrix[T] {
 		Cols: cols,
 		Data: rows,
 	}
+}
+
+func LoadMat[T Number](rows, cols int, filename string) (*Matrix[T], error) {
+	mat := NewEmptyMatrix[T](rows, cols)
+
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	flat := make([]T, rows*cols)
+
+	if err := binary.Read(f, binary.LittleEndian, flat); err != nil {
+		return nil, err
+	}
+
+	for r := int(0); r < rows; r++ {
+		start := r * cols
+		end := start + cols
+
+		copy(mat.Data[r].Data, flat[start:end])
+	}
+
+	return &mat, nil
 }
 
 type transpose struct {

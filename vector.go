@@ -102,3 +102,22 @@ func (v Vector[T]) Print() {
 	}
 	fmt.Println(builder)
 }
+
+func (v Vector[T]) Map(fn func(T) T) Vector[T] {
+
+	vector := NewEmptyVector[T](v.Len())
+
+	for i, _ := range v.Data {
+		vector.Data[i] = fn(v.Data[i])
+	}
+
+	return vector
+}
+
+func (v Vector[T]) Sum() T {
+	var sum T
+	for _, val := range v.Data {
+		sum += val
+	}
+	return sum
+}
