@@ -168,3 +168,7 @@ func (m Matrix[T]) Map(fn func(T) T) Matrix[T] {
 
 	return result
 }
+
+func (m Matrix[T]) Clear() {
+	m.Fill(0)
+}

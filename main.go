@@ -89,6 +89,8 @@ func main() {
 	loss := namedTensor("loss = Mean(diff)", names, diff)
 
 	prog := model.ModelProgramCreate(loss)
+	//prog.ComputeGrads()
+	//prog.Compute()
 
 	for i, t := range prog.Vars {
 		fmt.Printf("%d: %s\n", i, names[t])

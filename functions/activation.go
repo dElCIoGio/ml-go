@@ -1,6 +1,7 @@
 package functions
 
 import (
+	"errors"
 	"math"
 	"ml/matrix"
 	"ml/vector"
@@ -41,12 +42,36 @@ func (r ReLUActivation) GradMatrix(m matrix.Matrix[float64]) matrix.Matrix[float
 	})
 }
 
+func (r ReLUActivation) AddGrad(
+	out *matrix.Matrix[float64],
+	in *matrix.Matrix[float64],
+	grad *matrix.Matrix[float64]) error {
+	if out.Rows != in.Rows || out.Cols != in.Cols {
+		return errors.New("the out and in matrices have to be of the same size")
+	}
+
+	if out.Rows != grad.Rows || out.Cols != grad.Cols {
+		return errors.New("the out and grad matrices have to be of the same size")
+	}
+
+	for row := 0; row < out.Rows; row++ {
+		for col := 0; col < out.Cols; col++ {
+			if in.At(row, col) >= 0 {
+				newGrad := out.At(row, col) + grad.At(row, col)
+				out.Set(row, col, newGrad)
+			}
+		}
+	}
+
+	return nil
+}
+
 type SoftmaxActivation struct {
 }
 
 func (a *SoftmaxActivation) Pred(m matrix.Matrix[float64]) matrix.Matrix[float64] {
 
-	matrix := matrix.NewEmptyMatrix[float64](m.Rows, m.Cols)
+	newMatrix := matrix.NewEmptyMatrix[float64](m.Rows, m.Cols)
 
 	for i, row := range m.Data {
 
@@ -63,11 +88,11 @@ func (a *SoftmaxActivation) Pred(m matrix.Matrix[float64]) matrix.Matrix[float64
 			return value / sum
 		})
 
-		matrix.Data[i] = norm
+		newMatrix.Data[i] = norm
 
 	}
 
-	return matrix
+	return newMatrix
 
 }
 

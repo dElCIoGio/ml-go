@@ -45,7 +45,7 @@ type Tensor struct {
 }
 
 func (t *Tensor) HasFlag(flag types.TensorFlag) bool {
-	return t.Flags&flag != 0
+	return t.Flags&flag == flag
 }
 
 func (t *Tensor) AddFlag(flag types.TensorFlag) {
@@ -85,7 +85,7 @@ func NewTensor(data *matrix.Matrix[float64], options ...TensorOptions) *Tensor {
 		Inputs:    []*Tensor{},
 	}
 
-	if params.Flags&types.RequiresGrad != 0 {
+	if params.Flags&types.RequiresGradFlag != 0 {
 		grad := matrix.NewEmptyMatrix[float64](data.Rows, data.Cols)
 		output.Grad = &grad
 	}

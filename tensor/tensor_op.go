@@ -18,13 +18,38 @@ func Add(a, b *Tensor) (*Tensor, error) {
 
 	out.Backward = func() {
 
-		if a.HasFlag(types.RequiresGrad) {
+		if a.HasFlag(types.RequiresGradFlag) {
 			a.Grad, _ = a.Grad.Add(out.Grad)
 		}
 
-		if b.HasFlag(types.RequiresGrad) {
+		if b.HasFlag(types.RequiresGradFlag) {
+			b.Grad, _ = b.Grad.Add(out.Grad)
 		}
-		b.Grad, _ = b.Grad.Add(out.Grad)
+	}
+
+	return out, nil
+}
+
+func Sub(a, b *Tensor) (*Tensor, error) {
+
+	out := _binaryOp(a, b, a.Data.Cols, a.Data.Rows, types.None, types.OpSub)
+
+	val, err := a.Data.Sub(b.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	out.Data = val
+
+	out.Backward = func() {
+
+		if a.HasFlag(types.RequiresGradFlag) {
+			a.Grad, _ = a.Grad.Sub(out.Grad)
+		}
+
+		if b.HasFlag(types.RequiresGradFlag) {
+			b.Grad, _ = b.Grad.Sub(out.Grad)
+		}
 	}
 
 	return out, nil
@@ -32,14 +57,14 @@ func Add(a, b *Tensor) (*Tensor, error) {
 
 func Mul(a, b *Tensor) (*Tensor, error) {
 
-	val, err := a.Data.Mul(*b.Data)
+	val, err := a.Data.Mul(b.Data)
 	if err != nil {
 		return nil, err
 	}
 
 	out := &Tensor{
 		Data:      val,
-		Operation: types.OpMul,
+		Operation: types.OpMatMul,
 		Inputs:    []*Tensor{a, b},
 	}
 
@@ -47,13 +72,13 @@ func Mul(a, b *Tensor) (*Tensor, error) {
 	out.Grad = &grad
 
 	out.Backward = func() {
-		val, err := b.Data.Mul(*out.Grad)
+		val, err := b.Data.Mul(out.Grad)
 		if err != nil {
 			panic(err)
 		}
 		a.Grad, _ = a.Grad.Add(val)
 
-		val, err = a.Data.Mul(*out.Grad)
+		val, err = a.Data.Mul(out.Grad)
 		if err != nil {
 			panic(err)
 		}

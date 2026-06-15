@@ -6,8 +6,8 @@ import (
 )
 
 func _unaryOp(input *Tensor, rows, cols int, flags types.TensorFlag, operation types.Op) *Tensor {
-	if input.HasFlag(types.RequiresGrad) {
-		flags |= types.RequiresGrad
+	if input.HasFlag(types.RequiresGradFlag) {
+		flags |= types.RequiresGradFlag
 	}
 
 	data := matrix.NewEmptyMatrix[float64](rows, cols)
@@ -22,8 +22,8 @@ func _unaryOp(input *Tensor, rows, cols int, flags types.TensorFlag, operation t
 }
 
 func _binaryOp(a, b *Tensor, rows, cols int, flags types.TensorFlag, operation types.Op) *Tensor {
-	if a.HasFlag(types.RequiresGrad) || b.HasFlag(types.RequiresGrad) {
-		flags |= types.RequiresGrad
+	if a.HasFlag(types.RequiresGradFlag) || b.HasFlag(types.RequiresGradFlag) {
+		flags |= types.RequiresGradFlag
 	}
 
 	data := matrix.NewEmptyMatrix[float64](rows, cols)
@@ -36,4 +36,18 @@ func _binaryOp(a, b *Tensor, rows, cols int, flags types.TensorFlag, operation t
 	out.Inputs = append(out.Inputs, b)
 
 	return out
+}
+
+func TensorNumInputs(operation types.Op) int {
+
+	inputs := 0
+
+	if operation > types.OneInputOp {
+		inputs = 1
+	}
+	if operation > types.TwoInputOp {
+		inputs = 2
+	}
+
+	return inputs
 }

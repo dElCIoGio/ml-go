@@ -23,11 +23,11 @@ func (m Matrix[T]) Add(other *Matrix[T]) (*Matrix[T], error) {
 
 }
 
-func (m Matrix[T]) Sub(other Matrix[T]) (Matrix[T], error) {
+func (m Matrix[T]) Sub(other *Matrix[T]) (*Matrix[T], error) {
 	var rows [][]T
 
 	if m.Rows != other.Rows || m.Cols != other.Cols {
-		return m, errors.New("The two matrices have to be of the same dimentions")
+		return &m, errors.New("The two matrices have to be of the same dimentions")
 	}
 
 	for i := 0; i < m.Rows; i++ {
@@ -37,7 +37,7 @@ func (m Matrix[T]) Sub(other Matrix[T]) (Matrix[T], error) {
 
 	matrix := NewMatrix[T](rows)
 
-	return matrix, nil
+	return &matrix, nil
 
 }
 
@@ -46,7 +46,7 @@ type MatMulOptions struct {
 	TransposeB bool
 }
 
-func (m Matrix[T]) Mul(other Matrix[T], options ...MatMulOptions) (*Matrix[T], error) {
+func (m Matrix[T]) Mul(other *Matrix[T], options ...MatMulOptions) (*Matrix[T], error) {
 	opts := MatMulOptions{}
 
 	if len(options) > 0 {
