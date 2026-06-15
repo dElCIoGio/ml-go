@@ -1,13 +1,13 @@
-package matrix
+package tensor
 
 import (
-	"ml/tensor"
+	"ml/matrix"
 	"ml/types"
 )
 
-func Scalar(val float64) *tensor.Tensor {
+func Scalar(val float64) *Tensor {
 
-	return &tensor.Tensor{
+	return &Tensor{
 		Data:      NewScalar[float64](val),
 		Grad:      nil,
 		Operation: 0,
@@ -17,8 +17,8 @@ func Scalar(val float64) *tensor.Tensor {
 	}
 }
 
-func NewScalar[T types.Number](val T) *Matrix[T] {
-	matrix := NewEmptyMatrix[T](1, 1)
+func NewScalar[T types.Number](val T) *matrix.Matrix[T] {
+	matrix := matrix.NewEmptyMatrix[T](1, 1)
 	matrix.Set(0, 0, val)
 	return &matrix
 }
