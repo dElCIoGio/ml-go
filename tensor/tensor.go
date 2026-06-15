@@ -85,9 +85,10 @@ func NewTensor(data *matrix.Matrix[float64], options ...TensorOptions) *Tensor {
 		Inputs:    []*Tensor{},
 	}
 
-	if params.Flags&types.RequiresGradFlag != 0 {
-		grad := matrix.NewEmptyMatrix[float64](data.Rows, data.Cols)
-		output.Grad = &grad
+	output.Flags = params.Flags
+
+	if output.HasFlag(types.RequiresGradFlag) {
+		output.WithGrad()
 	}
 
 	if params.Operation != types.OpCreate {
@@ -95,4 +96,13 @@ func NewTensor(data *matrix.Matrix[float64], options ...TensorOptions) *Tensor {
 	}
 
 	return &output
+}
+
+func (t *Tensor) WithGrad() {
+
+	t.AddFlag(types.RequiresGradFlag)
+
+	grad := matrix.NewEmptyMatrix[float64](t.Data.Rows, t.Data.Cols)
+	t.Grad = &grad
+
 }

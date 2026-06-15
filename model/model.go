@@ -1,6 +1,7 @@
 package model
 
 import (
+	"math"
 	"ml/matrix"
 	"ml/tensor"
 	"ml/types"
@@ -64,53 +65,139 @@ func ModelProgramCreate(outTensor *tensor.Tensor) *ModelProgram {
 	}
 }
 func (prog *ModelProgram) Compute() {
-
 	for i := 0; i < len(prog.Vars); i++ {
 		curr := prog.Vars[i]
 
-		var a, b *tensor.Tensor
-
-		numInputs := tensor.TensorNumInputs(curr.Operation)
-		if numInputs >= 1 {
-			a = curr.Inputs[0]
-		}
-
-		if numInputs >= 2 {
-			b = curr.Inputs[1]
-		}
 		switch curr.Operation {
 		case types.OpCreate:
-			break
+			continue
 
-		case types.OneInputOp:
-			break
-
-		case types.TwoInputOp:
-			break
+		case types.OneInputOp, types.TwoInputOp:
+			continue
 
 		case types.OpAdd:
-			curr.Data, _ = a.Data.Add(b.Data)
-			break
+			a := curr.Inputs[0]
+			b := curr.Inputs[1]
+
+			val, err := a.Data.Add(b.Data)
+			if err != nil {
+				panic(err)
+			}
+
+			curr.Data = val
+
 		case types.OpSub:
-			curr.Data, _ = a.Data.Sub(b.Data)
-			break
+			a := curr.Inputs[0]
+			b := curr.Inputs[1]
+
+			val, err := a.Data.Sub(b.Data)
+			if err != nil {
+				panic(err)
+			}
+
+			curr.Data = val
+
 		case types.OpMatMul:
-			curr.Data, _ = a.Data.Mul(b.Data)
-			break
+			a := curr.Inputs[0]
+			b := curr.Inputs[1]
+
+			val, err := a.Data.MatMul(b.Data)
+			if err != nil {
+				panic(err)
+			}
+
+			curr.Data = val
+
+		case types.OpNeg:
+			a := curr.Inputs[0]
+			curr.Data = mapMatrix(a.Data, func(x float64) float64 {
+				return -x
+			})
+
+		case types.OpExp:
+			a := curr.Inputs[0]
+			curr.Data = mapMatrix(a.Data, func(x float64) float64 {
+				return math.Exp(x)
+			})
+
+		case types.OpLog:
+			a := curr.Inputs[0]
+			curr.Data = mapMatrix(a.Data, func(x float64) float64 {
+				return math.Log(x)
+			})
+
+		case types.OpMul:
+			a := curr.Inputs[0]
+			b := curr.Inputs[1]
+
+			curr.Data = elementwise(a.Data, b.Data, func(x, y float64) float64 {
+				return x * y
+			})
+
+		case types.OpDiv:
+			a := curr.Inputs[0]
+			b := curr.Inputs[1]
+
+			curr.Data = elementwise(a.Data, b.Data, func(x, y float64) float64 {
+				return x / y
+			})
+
+		case types.OpMaximum:
+			a := curr.Inputs[0]
+			b := curr.Inputs[1]
+
+			curr.Data = elementwise(a.Data, b.Data, func(x, y float64) float64 {
+				if x > y {
+					return x
+				}
+				return y
+			})
+
+		case types.OpSum:
+			a := curr.Inputs[0]
+
+			sum := 0.0
+			for row := 0; row < a.Data.Rows; row++ {
+				for col := 0; col < a.Data.Cols; col++ {
+					sum += a.Data.At(row, col)
+				}
+			}
+
+			m := matrix.NewEmptyMatrix[float64](1, 1)
+			m.Set(0, 0, sum)
+			curr.Data = &m
+
+		case types.OpMean:
+			a := curr.Inputs[0]
+
+			sum := 0.0
+			count := float64(a.Data.Rows * a.Data.Cols)
+
+			for row := 0; row < a.Data.Rows; row++ {
+				for col := 0; col < a.Data.Cols; col++ {
+					sum += a.Data.At(row, col)
+				}
+			}
+
+			m := matrix.NewEmptyMatrix[float64](1, 1)
+			m.Set(0, 0, sum/count)
+			curr.Data = &m
+
+		case types.OpTranspose:
+			a := curr.Inputs[0]
+			curr.Data = transposeMatrix(a.Data)
+
 		default:
-			panic("unhandled default case")
-
+			panic("unhandled operation")
 		}
-
 	}
-
 }
 
 func (prog *ModelProgram) ComputeGrads() {
-
 	if len(prog.Vars) == 0 {
 		return
 	}
+
 	for _, curr := range prog.Vars {
 		if curr.HasFlag(types.RequiresGradFlag) && curr.Grad != nil {
 			curr.Grad.Clear()
@@ -118,79 +205,14 @@ func (prog *ModelProgram) ComputeGrads() {
 	}
 
 	lastIndex := len(prog.Vars) - 1
-	prog.Vars[lastIndex].
-		Grad.Fill(float64(1))
+	prog.Vars[lastIndex].Grad.Fill(float64(1))
 
 	for i := lastIndex; i >= 0; i-- {
 		curr := prog.Vars[i]
 
-		var a, b *tensor.Tensor
-
-		numInputs := tensor.TensorNumInputs(curr.Operation)
-		if numInputs >= 1 {
-			a = curr.Inputs[0]
+		if curr.Backward != nil {
+			curr.Backward()
 		}
-
-		if numInputs >= 2 {
-			b = curr.Inputs[1]
-		}
-
-		if numInputs == 1 &&
-			!a.HasFlag(types.RequiresGradFlag) {
-			continue
-		}
-
-		if numInputs == 2 &&
-			(a.HasFlag(types.ParameterFlag) &&
-				b.HasFlag(types.RequiresGradFlag)) {
-			continue
-		}
-
-		switch curr.Operation {
-		case types.OpCreate:
-			continue
-
-		case types.OneInputOp:
-		case types.TwoInputOp:
-			continue
-
-		case types.OpAdd:
-			if a.HasFlag(types.RequiresGradFlag) {
-				a.Grad, _ = a.Grad.Add(curr.Grad)
-			}
-
-			if b.HasFlag(types.RequiresGradFlag) {
-				b.Grad, _ = b.Grad.Add(curr.Grad)
-			}
-			break
-		case types.OpSub:
-			if a.HasFlag(types.RequiresGradFlag) {
-				a.Grad, _ = a.Grad.Add(curr.Grad)
-			}
-			if b.HasFlag(types.RequiresGradFlag) {
-				b.Grad, _ = b.Grad.Add(curr.Grad)
-			}
-
-			break
-		case types.OpMatMul:
-			if a.HasFlag(types.RequiresGradFlag) {
-				gradA, _ := curr.Grad.Mul(
-					b.Data,
-					matrix.MatMulOptions{TransposeB: true})
-				a.Grad, _ = a.Grad.Add(gradA)
-			}
-			if b.HasFlag(types.RequiresGradFlag) {
-				gradB, _ := a.Data.Mul(
-					curr.Grad,
-					matrix.MatMulOptions{TransposeA: true})
-				b.Grad, _ = b.Grad.Add(gradB)
-			}
-			break
-		default:
-			panic("unhandled default case")
-
-		}
-
 	}
 }
 

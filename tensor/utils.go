@@ -17,6 +17,10 @@ func _unaryOp(input *Tensor, rows, cols int, flags types.TensorFlag, operation t
 		Operation(operation))
 
 	out.Inputs = append(out.Inputs, input)
+	if out.HasFlag(types.RequiresGradFlag) {
+		grad := matrix.NewEmptyMatrix[float64](rows, cols)
+		out.Grad = &grad
+	}
 
 	return out
 }
@@ -34,6 +38,11 @@ func _binaryOp(a, b *Tensor, rows, cols int, flags types.TensorFlag, operation t
 
 	out.Inputs = append(out.Inputs, a)
 	out.Inputs = append(out.Inputs, b)
+
+	if out.HasFlag(types.RequiresGradFlag) {
+		grad := matrix.NewEmptyMatrix[float64](rows, cols)
+		out.Grad = &grad
+	}
 
 	return out
 }

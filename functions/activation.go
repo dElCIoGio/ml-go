@@ -4,6 +4,8 @@ import (
 	"errors"
 	"math"
 	"ml/matrix"
+	"ml/tensor"
+	"ml/types"
 	"ml/vector"
 )
 
@@ -123,8 +125,13 @@ func (c CrossEntropyActivation) Loss(m, labels matrix.Matrix[float64]) float64 {
 	return val / float64(m.Rows)
 }
 
-func ReLU() ReLUActivation {
-	return ReLUActivation{}
+func ReLU(x *tensor.Tensor) *tensor.Tensor {
+
+	data := matrix.NewEmptyMatrix[float64](x.Data.Rows, x.Data.Cols)
+	t := tensor.NewTensor(&data, tensor.Flags(types.RequiresGradFlag))
+
+	return tensor.Maximum(t, x)
+
 }
 func Sigmoid() SigmoidActivation {
 	return SigmoidActivation{}

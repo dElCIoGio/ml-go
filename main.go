@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"ml/functions"
+	"ml/matrix"
 	"ml/model"
 	"ml/tensor"
+	"ml/types"
 	"ml/vector"
 )
 
@@ -60,40 +63,40 @@ func main() {
 	//	testLabels.Set(i, int(num), 1)
 	//}
 
-	names := map[*tensor.Tensor]string{}
+	data := matrix.NewMatrix[float64]([][]float64{
+		{-2, 3},
+		{-1, 5},
+	})
 
-	x := namedTensor("x", names)
+	grad := matrix.NewEmptyMatrix[float64](2, 2)
 
-	w1 := namedTensor("w1", names)
-	b1 := namedTensor("b1", names)
+	x := tensor.NewTensor(&data)
+	x.Grad = &grad
+	x.AddFlag(types.RequiresGradFlag)
 
-	w2 := namedTensor("w2", names)
-	b2 := namedTensor("b2", names)
-
-	target := namedTensor("target", names)
-
-	mm1 := namedTensor("mm1 = MatMul(x, w1)", names, x, w1)
-	h1 := namedTensor("h1 = Add(mm1, b1)", names, mm1, b1)
-
-	// Shared input: h1 is used twice
-	sq := namedTensor("sq = Mul(h1, h1)", names, h1, h1)
-
-	mm2 := namedTensor("mm2 = MatMul(sq, w2)", names, sq, w2)
-
-	// Skip connection: x is reused here
-	skip := namedTensor("skip = Add(x, b2)", names, x, b2)
-
-	out := namedTensor("out = Add(mm2, skip)", names, mm2, skip)
-
-	diff := namedTensor("diff = Sub(out, target)", names, out, target)
-	loss := namedTensor("loss = Mean(diff)", names, diff)
+	y := functions.ReLU(x)
+	loss := tensor.Sum(y)
 
 	prog := model.ModelProgramCreate(loss)
-	//prog.ComputeGrads()
-	//prog.Compute()
 
-	for i, t := range prog.Vars {
-		fmt.Printf("%d: %s\n", i, names[t])
+	fmt.Println("Program order:")
+	for i, v := range prog.Vars {
+		fmt.Println(i, v.Operation)
 	}
+
+	prog.Compute()
+	prog.ComputeGrads()
+
+	fmt.Println("x data:")
+	fmt.Println(x.Data)
+
+	fmt.Println("ReLU output:")
+	fmt.Println(y.Data)
+
+	fmt.Println("loss:")
+	fmt.Println(loss.Data)
+
+	fmt.Println("x grad:")
+	fmt.Println(x.Grad)
 
 }
