@@ -46,7 +46,7 @@ type MatMulOptions struct {
 	TransposeB bool
 }
 
-func (m Matrix[T]) Mul(other *Matrix[T], options ...MatMulOptions) (*Matrix[T], error) {
+func (m Matrix[T]) MatMul(other *Matrix[T], options ...MatMulOptions) (*Matrix[T], error) {
 	opts := MatMulOptions{}
 
 	if len(options) > 0 {
@@ -111,4 +111,60 @@ func (m Matrix[T]) Scale(scale T) {
 	for _, row := range m.Data {
 		row.MulScalar(scale)
 	}
+}
+
+func (m Matrix[T]) Mul(other *Matrix[T]) (*Matrix[T], error) {
+
+	if !IsSameShape(m, *other) {
+		return nil, errors.New("The two matrices have to be of the same dimentions")
+	}
+
+	matrix := NewEmptyMatrix[T](m.Rows, m.Cols)
+
+	for row := 0; row < matrix.Rows; row++ {
+		for col := 0; col < matrix.Cols; col++ {
+			matrix.Set(row, col, m.At(row, col)*other.At(row, col))
+		}
+	}
+
+	return &matrix, nil
+}
+
+func (m Matrix[T]) Div(other *Matrix[T]) (*Matrix[T], error) {
+
+	matrix := NewEmptyMatrix[T](m.Rows, m.Cols)
+
+	for row := 0; row < matrix.Rows; row++ {
+		for col := 0; col < matrix.Cols; col++ {
+			matrix.Set(row, col, m.At(row, col)/other.At(row, col))
+		}
+	}
+
+	return &matrix, nil
+
+}
+
+func (m Matrix[T]) Maximum(other *Matrix[T]) (*Matrix[T], error) {
+
+	if !IsSameShape(m, *other) {
+		return nil, errors.New("The two matrices have to be of the same dimentions")
+	}
+
+	matrix := NewEmptyMatrix[T](m.Rows, m.Cols)
+
+	for row := 0; row < m.Rows; row++ {
+		for col := 0; col < m.Cols; col++ {
+			av := m.At(row, col)
+			bv := other.At(row, col)
+
+			if av > bv {
+				matrix.Set(row, col, av)
+			} else {
+				matrix.Set(row, col, bv)
+			}
+		}
+	}
+
+	return &matrix, nil
+
 }

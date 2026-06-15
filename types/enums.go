@@ -29,12 +29,16 @@ const (
 
 	OpSum
 	OpMean
-	OpMax
+	OpMax // reduction max over a tensor
 
 	TwoInputOp
 
 	OpAdd
 	OpSub
-	OpMatMul
-	OpDiv
+	OpMatMul // A @ B (matrix multiplication)
+	OpMul    // A * B (element-wise)
+	OpDiv    // element-wise
+
+	OpMaximum // element-wise max between two tensors
+
 )
