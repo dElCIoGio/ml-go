@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"ml/vector"
 )
 
-func DrawMNISTDigit(data Vector[float32]) {
+func DrawMNISTDigit(data vector.Vector[float32]) {
 	for y := 0; y < 28; y++ {
 		for x := 0; x < 28; x++ {
 			num := data.Data[x+y*28]
@@ -30,11 +31,22 @@ func DrawMNISTDigit(data Vector[float32]) {
 func main() {
 
 	//trainImages, _ := LoadMat[float32](60000, 784, "data/train_images.mat")
-	testImages, err := LoadMat[float32](10000, 784, "data/test_images.mat")
-	if err != nil {
-		fmt.Println(err)
-	}
+	//testImages, _ := LoadMat[float32](10000, 784, "data/test_images.mat")
 
-	DrawMNISTDigit(testImages.Data[4])
+	//trainLabels := NewEmptyMatrix[float32](60000, 10)
+	//testLabels := NewEmptyMatrix[float32](10000, 10)
+	//
+	//trainLabelsFiles, _ := LoadMat[float32](60000, 1, "data/train_labels.mat")
+	//testLabelsFiles, _ := LoadMat[float32](10000, 1, "data/test_labels.mat")
+	//
+	//for i := 0; i < 60000; i++ {
+	//	num := trainLabelsFiles.At(i, 0)
+	//	trainLabels.Set(i, int(num), 1)
+	//}
+	//
+	//for i := 0; i < 10000; i++ {
+	//	num := testLabelsFiles.At(i, 0)
+	//	testLabels.Set(i, int(num), 1)
+	//}
 
 }
