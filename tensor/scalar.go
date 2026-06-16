@@ -18,7 +18,7 @@ func Scalar(val float64) *Tensor {
 }
 
 func NewScalar[T types.Number](val T) *matrix.Matrix[T] {
-	matrix := matrix.NewEmptyMatrix[T](1, 1)
-	matrix.Set(0, 0, val)
-	return &matrix
+	m := matrix.NewEmptyMatrix[T](1, 1)
+	m.Set(0, 0, val)
+	return &m
 }

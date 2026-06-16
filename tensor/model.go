@@ -1,23 +1,22 @@
-package model
+package tensor
 
 import (
 	"math"
 	"ml/matrix"
-	"ml/tensor"
 	"ml/types"
 )
 
 type ModelProgram struct {
-	Vars []*tensor.Tensor
+	Vars []*Tensor
 }
 
 type ModelContext struct {
 	NumberOfVars int
 
-	Input         *tensor.Tensor // = x
-	Output        *tensor.Tensor // = prediction
-	DesiredOutput *tensor.Tensor // = target/label
-	Cost          *tensor.Tensor // = loss
+	Input         *Tensor // = x
+	Output        *Tensor // = prediction
+	DesiredOutput *Tensor // = target/label
+	Cost          *Tensor // = loss
 
 	ForwardProgram *ModelProgram
 	CostProgram    *ModelProgram
@@ -34,13 +33,13 @@ type ModelTrainingDesc struct {
 	LearningRate float32
 }
 
-func ModelProgramCreate(outTensor *tensor.Tensor) *ModelProgram {
-	visited := map[*tensor.Tensor]bool{}
-	var vars []*tensor.Tensor
+func ModelProgramCreate(outTensor *Tensor) *ModelProgram {
+	visited := map[*Tensor]bool{}
+	var vars []*Tensor
 
-	var visit func(t *tensor.Tensor)
+	var visit func(t *Tensor)
 
-	visit = func(t *tensor.Tensor) {
+	visit = func(t *Tensor) {
 		if t == nil {
 			return
 		}
@@ -137,8 +136,11 @@ func (prog *ModelProgram) Compute() {
 		case types.OpDiv:
 			a := curr.Inputs[0]
 			b := curr.Inputs[1]
+			curr.Data = elementwiseBroadcast(a.Data, b.Data, func(x, y float64) float64 {
+				if y == 0 {
+					panic("division by zero")
+				}
 
-			curr.Data = elementwise(a.Data, b.Data, func(x, y float64) float64 {
 				return x / y
 			})
 
@@ -205,7 +207,14 @@ func (prog *ModelProgram) ComputeGrads() {
 	}
 
 	lastIndex := len(prog.Vars) - 1
-	prog.Vars[lastIndex].Grad.Fill(float64(1))
+	last := prog.Vars[lastIndex]
+
+	if last.Grad == nil {
+		grad := matrix.NewEmptyMatrix[float64](last.Data.Rows, last.Data.Cols)
+		last.Grad = &grad
+	}
+
+	last.Grad.Fill(1)
 
 	for i := lastIndex; i >= 0; i-- {
 		curr := prog.Vars[i]

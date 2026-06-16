@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"ml/functions"
 	"ml/matrix"
-	"ml/model"
 	"ml/tensor"
-	"ml/types"
 	"ml/vector"
 )
 
@@ -62,36 +60,29 @@ func main() {
 	//	num := testLabelsFiles.At(i, 0)
 	//	testLabels.Set(i, int(num), 1)
 	//}
-
 	data := matrix.NewMatrix[float64]([][]float64{
-		{-2, 3},
-		{-1, 5},
+		{1, 2, 3},
 	})
 
-	grad := matrix.NewEmptyMatrix[float64](2, 2)
-
 	x := tensor.NewTensor(&data)
-	x.Grad = &grad
-	x.AddFlag(types.RequiresGradFlag)
+	x.WithGrad()
 
-	y := functions.ReLU(x)
-	loss := tensor.Sum(y)
+	targetData := matrix.NewMatrix[float64]([][]float64{
+		{0, 0, 1},
+	})
 
-	prog := model.ModelProgramCreate(loss)
+	target := tensor.NewTensor(&targetData)
 
-	fmt.Println("Program order:")
-	for i, v := range prog.Vars {
-		fmt.Println(i, v.Operation)
-	}
+	pred := functions.Softmax(x)
+	loss := functions.CrossEntropy(pred, target)
+
+	prog := tensor.ModelProgramCreate(loss)
 
 	prog.Compute()
 	prog.ComputeGrads()
 
-	fmt.Println("x data:")
-	fmt.Println(x.Data)
-
-	fmt.Println("ReLU output:")
-	fmt.Println(y.Data)
+	fmt.Println("softmax output:")
+	fmt.Println(pred.Data)
 
 	fmt.Println("loss:")
 	fmt.Println(loss.Data)

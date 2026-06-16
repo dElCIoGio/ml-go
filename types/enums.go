@@ -40,5 +40,4 @@ const (
 	OpDiv    // element-wise
 
 	OpMaximum // element-wise max between two tensors
-
 )

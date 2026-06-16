@@ -105,7 +105,7 @@ func Neg(a *Tensor) *Tensor {
 
 	val := matrix.NewEmptyMatrix[float64](a.Data.Rows, a.Data.Cols)
 
-	val = val.Map(func(v float64) float64 {
+	val = a.Data.Map(func(v float64) float64 {
 		return -v
 	})
 
@@ -118,7 +118,7 @@ func Neg(a *Tensor) *Tensor {
 
 		for row := 0; row < a.Data.Rows; row++ {
 			for col := 0; col < a.Data.Cols; col++ {
-				a.Data.Set(row, col, a.Data.
+				a.Grad.Set(row, col, a.Grad.
 					At(row, col)+(-out.Grad.At(row, col)))
 			}
 		}
@@ -164,7 +164,7 @@ func Exp(a *Tensor) *Tensor {
 
 		for row := 0; row < a.Data.Rows; row++ {
 			for col := 0; col < a.Data.Cols; col++ {
-				grad := out.Grad.At(row, col) * out.Grad.At(row, col)
+				grad := out.Grad.At(row, col) * out.Data.At(row, col)
 				a.Grad.Set(row, col, a.Grad.At(row, col)+grad)
 			}
 		}
@@ -233,7 +233,7 @@ func Pow(a *Tensor, power float64) *Tensor {
 }
 func Sum(a *Tensor) *Tensor {
 
-	out := _unaryOp(a, a.Data.Rows, a.Data.Cols, types.None, types.OpSum)
+	out := _unaryOp(a, 1, 1, types.None, types.OpSum)
 
 	val := NewScalar[float64](0.0)
 
@@ -246,6 +246,7 @@ func Sum(a *Tensor) *Tensor {
 	}
 
 	val.Set(0, 0, sum)
+	out.Data = val
 
 	out.Backward = func() {
 		if !a.HasFlag(types.RequiresGradFlag) {
@@ -306,28 +307,40 @@ func Mul(a, b *Tensor) *Tensor {
 
 	matrix.AssertIsSameShape[float64](*a.Data, *b.Data)
 
+	rows, cols := broadcastShape(a.Data, b.Data)
+
 	out := _binaryOp(a, b, a.Data.Rows, a.Data.Cols, types.None, types.OpMul)
 
-	val, _ := a.Data.Mul(b.Data)
+	val := matrix.NewEmptyMatrix[float64](rows, cols)
 
-	out.Data = val
+	for row := 0; row < rows; row++ {
+		for col := 0; col < cols; col++ {
+			aVal := ValueAtBroadcast(a.Data, row, col)
+			bVal := ValueAtBroadcast(b.Data, row, col)
+
+			val.Set(row, col, aVal*bVal)
+		}
+	}
+
+	out.Data = &val
 
 	out.Backward = func() {
-		for row := 0; row < a.Data.Rows; row++ {
-			for col := 0; col < a.Data.Cols; col++ {
+		for row := 0; row < rows; row++ {
+			for col := 0; col < cols; col++ {
 				upstream := out.Grad.At(row, col)
 
-				aVal := a.Grad.At(row, col)
-				bVal := b.Grad.At(row, col)
+				aVal := ValueAtBroadcast(a.Data, row, col)
+				bVal := ValueAtBroadcast(b.Data, row, col)
 
 				if a.HasFlag(types.RequiresGradFlag) {
-					a.Grad.Set(row, col, aVal+(bVal*upstream))
+					gradA := upstream * bVal
+					AddGradBroadcast(a, row, col, gradA)
 				}
 
 				if b.HasFlag(types.RequiresGradFlag) {
-					b.Grad.Set(row, col, bVal+(aVal*upstream))
+					gradB := upstream * aVal
+					AddGradBroadcast(b, row, col, gradB)
 				}
-
 			}
 		}
 	}
@@ -336,35 +349,59 @@ func Mul(a, b *Tensor) *Tensor {
 }
 func Div(a, b *Tensor) *Tensor {
 
-	matrix.AssertIsSameShape[float64](*a.Data, *b.Data)
+	if !IsScalar(b.Data) {
+		matrix.AssertIsSameShape[float64](*a.Data, *b.Data)
+	}
+
+	rows, cols := a.Data.Rows, a.Data.Cols
+
+	if IsScalar(b.Data) {
+		rows, cols = a.Data.Rows, a.Data.Cols
+	}
+
+	if IsScalar(a.Data) {
+		rows, cols = b.Data.Rows, b.Data.Cols
+	}
 
 	out := _binaryOp(a, b, a.Data.Rows, a.Data.Cols, types.None, types.OpDiv)
 
-	val, _ := a.Data.Div(b.Data)
+	val := matrix.NewEmptyMatrix[float64](rows, cols)
 
-	out.Data = val
+	for row := 0; row < rows; row++ {
+		for col := 0; col < cols; col++ {
+			aVal := ValueAtBroadcast(a.Data, row, col)
+			bVal := ValueAtBroadcast(b.Data, row, col)
+
+			if bVal == 0 {
+				panic("division by zero")
+			}
+
+			val.Set(row, col, aVal/bVal)
+		}
+	}
+
+	out.Data = &val
 
 	out.Backward = func() {
-		for row := 0; row < a.Data.Rows; row++ {
-			for col := 0; col < a.Data.Cols; col++ {
-
+		for row := 0; row < rows; row++ {
+			for col := 0; col < cols; col++ {
 				upstream := out.Grad.At(row, col)
-				aVal := a.Grad.At(row, col)
-				bVal := b.Grad.At(row, col)
+
+				aVal := ValueAtBroadcast(a.Data, row, col)
+				bVal := ValueAtBroadcast(b.Data, row, col)
 
 				if a.HasFlag(types.RequiresGradFlag) {
-					a.Grad.Set(row, col, aVal+(upstream/bVal))
+					gradA := upstream / bVal
+					AddGradBroadcast(a, row, col, gradA)
 				}
 
 				if b.HasFlag(types.RequiresGradFlag) {
 					gradB := -upstream * aVal / (bVal * bVal)
-					b.Grad.Set(row, col, bVal+gradB)
+					AddGradBroadcast(b, row, col, gradB)
 				}
-
 			}
 		}
 	}
-
 	return out
 }
 func Maximum(a, b *Tensor) *Tensor {
