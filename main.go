@@ -8,7 +8,7 @@ import (
 	"ml/vector"
 )
 
-func DrawMNISTDigit(data vector.Vector[float32]) {
+func DrawMNISTDigit(data vector.Vector[float64]) {
 	for y := 0; y < 28; y++ {
 		for x := 0; x < 28; x++ {
 			num := data.Data[x+y*28]
@@ -31,63 +31,55 @@ func DrawMNISTDigit(data vector.Vector[float32]) {
 	fmt.Print("\x1b[0m")
 }
 
-func namedTensor(name string, names map[*tensor.Tensor]string, inputs ...*tensor.Tensor) *tensor.Tensor {
-	t := &tensor.Tensor{
-		Inputs: inputs,
-	}
-
-	names[t] = name
-	return t
-}
-
 func main() {
 
-	//trainImages, _ := LoadMat[float32](60000, 784, "data/train_images.mat")
-	//testImages, _ := LoadMat[float32](10000, 784, "data/test_images.mat")
+	trainImagesMatrix, _ := matrix.LoadMat[float64](60000, 784, "data/train_images.mat")
+	//testImagesMatrix, _ := matrix.LoadMat[float64](10000, 784, "data/test_images.mat")
 
-	//trainLabels := NewEmptyMatrix[float32](60000, 10)
-	//testLabels := NewEmptyMatrix[float32](10000, 10)
+	trainLabelsMatrix := matrix.NewEmptyMatrix[float64](60000, 10)
+	testLabelsMatrix := matrix.NewEmptyMatrix[float64](10000, 10)
+
+	trainLabelsFilesMatrix, _ := matrix.LoadMat[float64](60000, 1, "data/train_labels.mat")
+	testLabelsFilesMatrix, _ := matrix.LoadMat[float64](10000, 1, "data/test_labels.mat")
+
+	for i := 0; i < 60000; i++ {
+		num := trainLabelsFilesMatrix.At(i, 0)
+		trainLabelsMatrix.Set(i, int(num), 1)
+	}
+
+	for i := 0; i < 10000; i++ {
+		num := testLabelsFilesMatrix.At(i, 0)
+		testLabelsMatrix.Set(i, int(num), 1)
+	}
+
 	//
-	//trainLabelsFiles, _ := LoadMat[float32](60000, 1, "data/train_labels.mat")
-	//testLabelsFiles, _ := LoadMat[float32](10000, 1, "data/test_labels.mat")
+	//testImages := tensor.NewTensor(testImagesMatrix)
 	//
-	//for i := 0; i < 60000; i++ {
-	//	num := trainLabelsFiles.At(i, 0)
-	//	trainLabels.Set(i, int(num), 1)
-	//}
-	//
-	//for i := 0; i < 10000; i++ {
-	//	num := testLabelsFiles.At(i, 0)
-	//	testLabels.Set(i, int(num), 1)
-	//}
-	data := matrix.NewMatrix[float64]([][]float64{
-		{1, 2, 3},
-	})
+	//testLabels := tensor.NewTensor(&testLabelsMatrix)
 
-	x := tensor.NewTensor(&data)
-	x.WithGrad()
+	x := tensor.NewTensor(trainImagesMatrix)
+	y := tensor.NewTensor(&trainLabelsMatrix)
 
-	targetData := matrix.NewMatrix[float64]([][]float64{
-		{0, 0, 1},
-	})
+	wData := matrix.NewRandomMatrix[float64](784, 10)
+	w := tensor.NewTensor(&wData)
+	w.WithGrad()
 
-	target := tensor.NewTensor(&targetData)
-
-	pred := functions.Softmax(x)
-	loss := functions.CrossEntropy(pred, target)
+	logits := tensor.MatMul(x, w)
+	pred := functions.Softmax(logits)
+	loss := functions.CrossEntropy(pred, y)
 
 	prog := tensor.ModelProgramCreate(loss)
 
 	prog.Compute()
 	prog.ComputeGrads()
 
-	fmt.Println("softmax output:")
+	fmt.Println("prediction:")
 	fmt.Println(pred.Data)
 
 	fmt.Println("loss:")
 	fmt.Println(loss.Data)
 
-	fmt.Println("x grad:")
-	fmt.Println(x.Grad)
+	fmt.Println("W grad:")
+	fmt.Println(w.Grad)
 
 }

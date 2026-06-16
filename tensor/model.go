@@ -225,7 +225,33 @@ func (prog *ModelProgram) ComputeGrads() {
 	}
 }
 
-// func ModelCreate() *ModelContext                            {}
-func ModelCompile(ctx *ModelContext)                        {}
-func ModelFeedForward(ctx *ModelContext)                    {}
+func ModelCreate() *ModelContext {
+
+	model := ModelContext{
+		NumberOfVars:   0,
+		Input:          nil,
+		Output:         nil,
+		DesiredOutput:  nil,
+		Cost:           nil,
+		ForwardProgram: nil,
+		CostProgram:    nil,
+	}
+
+	return &model
+}
+
+func ModelCompile(ctx *ModelContext) {
+
+	if ctx.Output != nil {
+		ctx.ForwardProgram = ModelProgramCreate(ctx.Output)
+	}
+
+	if ctx.Cost != nil {
+		ctx.CostProgram = ModelProgramCreate(ctx.Cost)
+	}
+
+}
+func ModelFeedForward(ctx *ModelContext) {
+	ModelCompile(ctx)
+}
 func ModelTrain(ctx *ModelContext, desc *ModelTrainingDesc) {}

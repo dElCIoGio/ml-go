@@ -2,6 +2,7 @@ package matrix
 
 import (
 	"encoding/binary"
+	"math/rand"
 	"ml/types"
 	"ml/vector"
 	"os"
@@ -41,8 +42,8 @@ func NewMatrix[T types.Number](data [][]T) Matrix[T] {
 			panic("all rows must have the same length")
 		}
 
-		vector := vector.NewVector[T](row)
-		rows = append(rows, vector)
+		v := vector.NewVector[T](row)
+		rows = append(rows, v)
 	}
 
 	return Matrix[T]{
@@ -50,6 +51,17 @@ func NewMatrix[T types.Number](data [][]T) Matrix[T] {
 		Cols: cols,
 		Data: rows,
 	}
+}
+
+func NewRandomMatrix[T types.Number](rows, cols int) Matrix[T] {
+
+	m := NewEmptyMatrix[T](rows, cols)
+
+	m.Map(func(v T) T {
+		return T(rand.NormFloat64() * 0.01)
+	})
+
+	return m
 }
 
 func LoadMat[T types.Number](rows, cols int, filename string) (*Matrix[T], error) {

@@ -14,7 +14,6 @@ func ReLU(x *tensor.Tensor) *tensor.Tensor {
 	return tensor.Maximum(t, x)
 
 }
-
 func Sigmoid(a *tensor.Tensor) *tensor.Tensor {
 	m := matrix.NewEmptyMatrix[float64](a.Data.Rows, a.Data.Cols)
 	m.Fill(1.0)
@@ -33,17 +32,17 @@ func Softmax(a *tensor.Tensor) *tensor.Tensor {
 
 	return tensor.Div(exps, sum)
 }
-func CrossEntropy(pred, target *tensor.Tensor) *tensor.Tensor {
+func Tanh(x *tensor.Tensor) *tensor.Tensor {
 
-	m := matrix.NewEmptyMatrix[float64](pred.Data.Rows, pred.Data.Cols)
-	m.Fill(1e-12)
-	eps := tensor.NewTensor(&m)
+	oneData := matrix.NewEmptyMatrix[float64](x.Data.Rows, x.Data.Cols)
+	oneData.Fill(float64(1))
 
-	safePred := tensor.Add(pred, eps)
-	logPred := tensor.Log(safePred)
-	mul := tensor.Mul(target, logPred)
-	sum := tensor.Sum(tensor.Neg(mul))
+	twoData := matrix.NewEmptyMatrix[float64](x.Data.Rows, x.Data.Cols)
+	twoData.Fill(float64(2))
 
-	return sum
+	one := tensor.NewTensor(&oneData)
+	two := tensor.NewTensor(&twoData)
 
+	return tensor.Sub(
+		tensor.Mul(two, Sigmoid(tensor.Mul(two, x))), one)
 }
