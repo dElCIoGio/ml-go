@@ -68,7 +68,7 @@ func MatMul(a, b *Tensor) *Tensor {
 		panic(err)
 	}
 
-	out := _binaryOp(a, b, a.Data.Rows, a.Data.Cols, types.None, types.OpMatMul)
+	out := _binaryOp(a, b, a.Data.Rows, b.Data.Cols, types.None, types.OpMatMul)
 	out.Data = val
 
 	out.Backward = func() {
@@ -105,7 +105,7 @@ func Neg(a *Tensor) *Tensor {
 
 	val := matrix.NewEmptyMatrix[float64](a.Data.Rows, a.Data.Cols)
 
-	val = a.Data.Map(func(v float64) float64 {
+	val = a.Data.Map(func(v float64, row, col int) float64 {
 		return -v
 	})
 
@@ -150,7 +150,7 @@ func Exp(a *Tensor) *Tensor {
 
 	val := matrix.NewEmptyMatrix[float64](a.Data.Rows, a.Data.Cols)
 
-	val = a.Data.Map(func(v float64) float64 {
+	val = a.Data.Map(func(v float64, row, col int) float64 {
 		return math.Exp(v)
 	})
 
@@ -179,7 +179,7 @@ func Log(a *Tensor) *Tensor {
 
 	val := matrix.NewEmptyMatrix[float64](a.Data.Rows, a.Data.Cols)
 
-	val = a.Data.Map(func(v float64) float64 {
+	val = a.Data.Map(func(v float64, row, col int) float64 {
 		return math.Log(v)
 	})
 
@@ -206,7 +206,7 @@ func Pow(a *Tensor, power float64) *Tensor {
 
 	val := matrix.NewEmptyMatrix[float64](a.Data.Rows, a.Data.Cols)
 
-	val = a.Data.Map(func(v float64) float64 {
+	val = a.Data.Map(func(v float64, row, col int) float64 {
 		return math.Pow(v, power)
 	})
 

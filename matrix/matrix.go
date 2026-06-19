@@ -2,6 +2,7 @@ package matrix
 
 import (
 	"encoding/binary"
+	"math"
 	"math/rand"
 	"ml/types"
 	"ml/vector"
@@ -57,11 +58,25 @@ func NewRandomMatrix[T types.Number](rows, cols int) Matrix[T] {
 
 	m := NewEmptyMatrix[T](rows, cols)
 
-	m.Map(func(v T) T {
+	m.Map(func(v T, row, col int) T {
 		return T(rand.NormFloat64() * 0.01)
 	})
 
 	return m
+}
+
+func RandomXavier(rows, cols int) *Matrix[float64] {
+	m := NewEmptyMatrix[float64](rows, cols)
+
+	scale := math.Sqrt(1.0 / float64(rows))
+
+	for row := 0; row < rows; row++ {
+		for col := 0; col < cols; col++ {
+			m.Set(row, col, rand.NormFloat64()*scale)
+		}
+	}
+
+	return &m
 }
 
 func LoadMat[T types.Number](rows, cols int, filename string) (*Matrix[T], error) {
@@ -169,12 +184,12 @@ func (m Matrix[T]) Transpose() Matrix[T] {
 
 }
 
-func (m Matrix[T]) Map(fn func(T) T) Matrix[T] {
+func (m Matrix[T]) Map(fn func(val T, row, col int) T) Matrix[T] {
 	result := NewEmptyMatrix[T](m.Rows, m.Cols)
 
 	for i := 0; i < m.Rows; i++ {
 		for j := 0; j < m.Cols; j++ {
-			result.Set(i, j, fn(m.At(i, j)))
+			result.Set(i, j, fn(m.At(i, j), i, j))
 		}
 	}
 

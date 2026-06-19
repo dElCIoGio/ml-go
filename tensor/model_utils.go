@@ -2,6 +2,7 @@ package tensor
 
 import (
 	"ml/matrix"
+	"ml/types"
 )
 
 func mapMatrix(
@@ -117,4 +118,21 @@ func AddGradBroadcast(
 	}
 
 	t.Grad.Set(row, col, t.Grad.At(row, col)+value)
+}
+
+func UpdateParameters(prog *ModelProgram, lr float64, batchSize int) {
+	scale := lr / float64(batchSize)
+
+	for _, t := range prog.Vars {
+		if !t.HasFlag(types.ParameterFlag) {
+			continue
+		}
+
+		for row := 0; row < t.Data.Rows; row++ {
+			for col := 0; col < t.Data.Cols; col++ {
+				update := scale * t.Grad.At(row, col)
+				t.Data.Set(row, col, t.Data.At(row, col)-update)
+			}
+		}
+	}
 }

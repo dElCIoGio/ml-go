@@ -1,7 +1,9 @@
 package tensor
 
 import (
+	"fmt"
 	"math"
+	"math/rand"
 	"ml/matrix"
 	"ml/types"
 )
@@ -227,15 +229,7 @@ func (prog *ModelProgram) ComputeGrads() {
 
 func ModelCreate() *ModelContext {
 
-	model := ModelContext{
-		NumberOfVars:   0,
-		Input:          nil,
-		Output:         nil,
-		DesiredOutput:  nil,
-		Cost:           nil,
-		ForwardProgram: nil,
-		CostProgram:    nil,
-	}
+	model := ModelContext{}
 
 	return &model
 }
@@ -252,6 +246,87 @@ func ModelCompile(ctx *ModelContext) {
 
 }
 func ModelFeedForward(ctx *ModelContext) {
-	ModelCompile(ctx)
+	ctx.ForwardProgram.Compute()
 }
-func ModelTrain(ctx *ModelContext, desc *ModelTrainingDesc) {}
+func ModelTrain(ctx *ModelContext, desc *ModelTrainingDesc) {
+	numExamples := desc.TrainImages.Rows
+	numBatches := numExamples / desc.BatchSize
+
+	trainingOrder := make([]int, numExamples)
+	for i := 0; i < numExamples; i++ {
+		trainingOrder[i] = i
+	}
+
+	for epoch := 0; epoch < desc.Epochs; epoch++ {
+		rand.Shuffle(numExamples, func(i, j int) {
+			trainingOrder[i], trainingOrder[j] = trainingOrder[j], trainingOrder[i]
+		})
+
+		for batch := 0; batch < numBatches; batch++ {
+			ctx.CostProgram.ZeroGrads(true)
+
+			avgCost := 0.0
+
+			for i := 0; i < desc.BatchSize; i++ {
+
+				ctx.CostProgram.ZeroGrads(false)
+				ctx.CostProgram.Compute()
+				ctx.CostProgram.Backward()
+
+				avgCost += ctx.Cost.Data.At(0, 0)
+			}
+
+			avgCost /= float64(desc.BatchSize)
+
+			UpdateParameters(ctx.CostProgram, float64(desc.LearningRate), desc.BatchSize)
+
+			fmt.Printf(
+				"Epoch %d/%d, Batch %d/%d, Average Cost: %.4f\r",
+				epoch+1,
+				desc.Epochs,
+				batch+1,
+				numBatches,
+				avgCost,
+			)
+		}
+
+		fmt.Println()
+	}
+}
+
+func (prog *ModelProgram) Backward() {
+	if len(prog.Vars) == 0 {
+		return
+	}
+
+	last := prog.Vars[len(prog.Vars)-1]
+
+	if last.Grad == nil {
+		g := matrix.NewEmptyMatrix[float64](last.Data.Rows, last.Data.Cols)
+		last.Grad = &g
+	}
+
+	last.Grad.Fill(1)
+
+	for i := len(prog.Vars) - 1; i >= 0; i-- {
+		curr := prog.Vars[i]
+
+		if curr.Backward != nil {
+			curr.Backward()
+		}
+	}
+}
+
+func (prog *ModelProgram) ZeroGrads(includeParams bool) {
+	for _, t := range prog.Vars {
+		if t.Grad == nil {
+			continue
+		}
+
+		if !includeParams && t.HasFlag(types.ParameterFlag) {
+			continue
+		}
+
+		t.Grad.Clear()
+	}
+}
