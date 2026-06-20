@@ -136,3 +136,25 @@ func UpdateParameters(prog *ModelProgram, lr float64, batchSize int) {
 		}
 	}
 }
+
+func setRow(dst *matrix.Matrix[float64], src *matrix.Matrix[float64], rowIndex int) {
+	for col := 0; col < src.Cols; col++ {
+		dst.Set(0, col, src.At(rowIndex, col))
+	}
+}
+
+func argMax(m *matrix.Matrix[float64]) int {
+	maxIndex := 0
+	maxValue := m.At(0, 0)
+
+	for col := 1; col < m.Cols; col++ {
+		v := m.At(0, col)
+
+		if v > maxValue {
+			maxValue = v
+			maxIndex = col
+		}
+	}
+
+	return maxIndex
+}

@@ -32,7 +32,10 @@ type ModelTrainingDesc struct {
 
 	Epochs       int
 	BatchSize    int
-	LearningRate float32
+	LearningRate float64
+
+	TrainLimit int
+	TestLimit  int
 }
 
 func ModelProgramCreate(outTensor *Tensor) *ModelProgram {
@@ -234,7 +237,7 @@ func ModelCreate() *ModelContext {
 	return &model
 }
 
-func ModelCompile(ctx *ModelContext) {
+func (ctx *ModelContext) Compile() {
 
 	if ctx.Output != nil {
 		ctx.ForwardProgram = ModelProgramCreate(ctx.Output)
@@ -245,11 +248,28 @@ func ModelCompile(ctx *ModelContext) {
 	}
 
 }
-func ModelFeedForward(ctx *ModelContext) {
+func (ctx *ModelContext) FeedForward() {
 	ctx.ForwardProgram.Compute()
 }
-func ModelTrain(ctx *ModelContext, desc *ModelTrainingDesc) {
+func (ctx *ModelContext) Train(desc *ModelTrainingDesc) {
+	if ctx.CostProgram == nil {
+		panic("model must be compiled before training")
+	}
+
+	if ctx.Input == nil {
+		panic("model input is nil")
+	}
+
+	if ctx.DesiredOutput == nil {
+		panic("model desired output is nil")
+	}
+
 	numExamples := desc.TrainImages.Rows
+
+	if desc.TrainLimit > 0 && desc.TrainLimit < numExamples {
+		numExamples = desc.TrainLimit
+	}
+
 	numBatches := numExamples / desc.BatchSize
 
 	trainingOrder := make([]int, numExamples)
@@ -262,36 +282,94 @@ func ModelTrain(ctx *ModelContext, desc *ModelTrainingDesc) {
 			trainingOrder[i], trainingOrder[j] = trainingOrder[j], trainingOrder[i]
 		})
 
+		epochLoss := 0.0
+
 		for batch := 0; batch < numBatches; batch++ {
 			ctx.CostProgram.ZeroGrads(true)
 
-			avgCost := 0.0
+			batchLoss := 0.0
 
 			for i := 0; i < desc.BatchSize; i++ {
+				orderIndex := batch*desc.BatchSize + i
+				sampleIndex := trainingOrder[orderIndex]
+
+				setRow(ctx.Input.Data, desc.TrainImages, sampleIndex)
+				setRow(ctx.DesiredOutput.Data, desc.TrainLabels, sampleIndex)
 
 				ctx.CostProgram.ZeroGrads(false)
 				ctx.CostProgram.Compute()
 				ctx.CostProgram.Backward()
 
-				avgCost += ctx.Cost.Data.At(0, 0)
+				batchLoss += ctx.Cost.Data.At(0, 0)
 			}
 
-			avgCost /= float64(desc.BatchSize)
+			batchLoss /= float64(desc.BatchSize)
+			epochLoss += batchLoss
 
-			UpdateParameters(ctx.CostProgram, float64(desc.LearningRate), desc.BatchSize)
+			UpdateParameters(ctx.CostProgram, desc.LearningRate, desc.BatchSize)
 
 			fmt.Printf(
-				"Epoch %d/%d, Batch %d/%d, Average Cost: %.4f\r",
+				"Epoch %d/%d | Batch %d/%d | Batch Loss: %.4f\r",
 				epoch+1,
 				desc.Epochs,
 				batch+1,
 				numBatches,
-				avgCost,
+				batchLoss,
 			)
 		}
 
-		fmt.Println()
+		avgEpochLoss := epochLoss / float64(numBatches)
+
+		fmt.Printf(
+			"\nEpoch %d/%d complete | Avg Loss: %.4f\n",
+			epoch+1,
+			desc.Epochs,
+			avgEpochLoss,
+		)
+
+		if desc.TestImages != nil && desc.TestLabels != nil && desc.TestLimit > 0 {
+			ctx.Evaluate(desc.TestImages, desc.TestLabels, desc.TestLimit)
+		}
 	}
+}
+
+func (ctx *ModelContext) Evaluate(
+	images *matrix.Matrix[float64],
+	labels *matrix.Matrix[float64],
+	limit int,
+) {
+	if ctx.ForwardProgram == nil {
+		panic("model forward program is nil")
+	}
+
+	if limit > images.Rows {
+		limit = images.Rows
+	}
+
+	correct := 0
+
+	for i := 0; i < limit; i++ {
+		setRow(ctx.Input.Data, images, i)
+		setRow(ctx.DesiredOutput.Data, labels, i)
+
+		ctx.ForwardProgram.Compute()
+
+		predicted := argMax(ctx.Output.Data)
+		actual := argMax(ctx.DesiredOutput.Data)
+
+		if predicted == actual {
+			correct++
+		}
+	}
+
+	accuracy := float64(correct) / float64(limit) * 100
+
+	fmt.Printf(
+		"Eval accuracy: %d/%d (%.2f%%)\n",
+		correct,
+		limit,
+		accuracy,
+	)
 }
 
 func (prog *ModelProgram) Backward() {

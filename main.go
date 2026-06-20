@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"ml/matrix"
 	functions2 "ml/nn/functions"
+	"ml/nn/layers"
 	"ml/tensor"
 	"ml/types"
 	"ml/vector"
@@ -147,87 +148,92 @@ func main() {
 
 	weights := tensor.NewTensor(wData)
 	weights.WithGrad()
-	weights.AddFlag(types.RequiresGradFlag)
 	weights.AddFlag(types.ParameterFlag)
 
-	logits := tensor.MatMul(input, weights)
+	nn := layers.NewSequential(
+		layers.NewLinear(784, 128),
+		layers.NewReLU(),
+		layers.NewLinear(128, 10),
+	)
+
+	logits := nn.Forward(input)
 	pred := functions2.Softmax(logits)
 	loss := functions2.CrossEntropy(pred, target)
 
-	prog := tensor.ModelProgramCreate(loss)
+	model := tensor.ModelCreate()
+	model.Input = input
+	model.Output = pred
+	model.DesiredOutput = target
+	model.Cost = loss
 
-	// 4. Test one sample
-	fmt.Println("---- SINGLE SAMPLE TEST ----")
+	model.Compile()
 
-	SetRow(input.Data, trainImagesMatrix, 0)
-	SetRow(target.Data, &trainLabelsMatrix, 0)
-
-	prog.Compute()
-	prog.ComputeGrads()
-
-	fmt.Println("prediction:")
-	fmt.Println(pred.Data)
-
-	fmt.Println("target:")
-	fmt.Println(target.Data)
-
-	fmt.Println("predicted class:", ArgMax(pred.Data))
-	fmt.Println("target class:", ArgMax(target.Data))
-
-	fmt.Println("loss:")
-	fmt.Println(loss.Data)
-
-	fmt.Println("weights grad shape:")
-	fmt.Println(weights.Grad.Rows, weights.Grad.Cols)
-
-	// 5. One update test
-	fmt.Println("\n---- ONE UPDATE TEST ----")
-
-	beforeLoss := loss.Data.At(0, 0)
-
-	UpdateParameters(prog, 0.1)
-
-	prog.Compute()
-	prog.ComputeGrads()
-
-	afterLoss := loss.Data.At(0, 0)
-
-	fmt.Println("loss before update:", beforeLoss)
-	fmt.Println("loss after update:", afterLoss)
-
-	fmt.Println("prediction after update:")
-	fmt.Println(pred.Data)
-
-	// 6. Tiny training loop
+	// 1. Tiny training loop
 	fmt.Println("\n---- SMALL TRAINING TEST ----")
 
-	trainLimit := 200
-	testLimit := 200
-	epochs := 3
-	learningRate := 0.05
+	desc := &tensor.ModelTrainingDesc{
+		TrainImages: trainImagesMatrix,
+		TestImages:  testImagesMatrix,
+		TrainLabels: &trainLabelsMatrix,
+		TestLabels:  &testLabelsMatrix,
 
-	fmt.Println("Before training:")
-	Evaluate(prog, input, target, pred, loss, testImagesMatrix, &testLabelsMatrix, testLimit)
+		Epochs:       10,
+		BatchSize:    1,
+		LearningRate: 0.01,
 
-	for epoch := 0; epoch < epochs; epoch++ {
-		totalLoss := 0.0
+		TrainLimit: 1000,
+		TestLimit:  1000,
+	}
 
-		for i := 0; i < trainLimit; i++ {
-			SetRow(input.Data, trainImagesMatrix, i)
-			SetRow(target.Data, &trainLabelsMatrix, i)
+	// 8. Evaluate before training
+	fmt.Println("---- BEFORE TRAINING ----")
+	model.Evaluate(testImagesMatrix, &testLabelsMatrix, desc.TestLimit)
 
-			prog.Compute()
-			prog.ComputeGrads()
+	// 9. Train model
+	fmt.Println("\n---- TRAINING ----")
+	model.Train(desc)
 
-			totalLoss += loss.Data.At(0, 0)
+	// 10. Evaluate after training
+	fmt.Println("\n---- AFTER TRAINING ----")
+	model.Evaluate(testImagesMatrix, &testLabelsMatrix, desc.TestLimit)
 
-			UpdateParameters(prog, learningRate)
-		}
+	// 11. Show individual predictions
+	fmt.Println("\n---- SAMPLE PREDICTIONS ----")
 
-		avgTrainLoss := totalLoss / float64(trainLimit)
+	prog := model.ForwardProgram
 
-		fmt.Printf("Epoch %d/%d | avg train loss %.4f\n", epoch+1, epochs, avgTrainLoss)
+	for i := 0; i < 5; i++ {
+		PredictOne(prog, input, target, pred, testImagesMatrix, &testLabelsMatrix, i)
+	}
+}
 
-		Evaluate(prog, input, target, pred, loss, testImagesMatrix, &testLabelsMatrix, testLimit)
+func PredictOne(
+	prog *tensor.ModelProgram,
+	input *tensor.Tensor,
+	target *tensor.Tensor,
+	pred *tensor.Tensor,
+	images *matrix.Matrix[float64],
+	labels *matrix.Matrix[float64],
+	index int,
+) {
+	SetRow(input.Data, images, index)
+	SetRow(target.Data, labels, index)
+
+	prog.Compute()
+
+	predicted := ArgMax(pred.Data)
+	actual := ArgMax(target.Data)
+
+	fmt.Println("Image index:", index)
+	fmt.Println("Prediction probabilities:")
+	fmt.Println(pred.Data)
+
+	fmt.Println("Predicted class:", predicted)
+	fmt.Println("Actual class:", actual)
+
+	if predicted == actual {
+		fmt.Println("Correct ✅")
+	} else {
+		fmt.Println("Wrong ❌")
 	}
 }
