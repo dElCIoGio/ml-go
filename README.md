@@ -1,139 +1,87 @@
 # ml-go
 
-A small machine learning library written in Go from scratch.
+A machine learning library written in Go from scratch.
 
-This project is mainly a learning-focused implementation of the core ideas behind neural networks: vectors, matrices, tensors, computation graphs, automatic differentiation, activation functions, losses, and simple training loops.
-
-It is not intended to replace production machine learning frameworks. The goal is to understand what those frameworks are doing internally by building the pieces directly in Go.
+This is an educational project where I am rebuilding the core pieces behind neural networks instead of relying on existing ML frameworks. The goal is to understand how the lower-level parts work: vectors, matrices, tensors, computation graphs, gradients, activation functions, losses, and simple training loops.
 
 ## Current status
 
-This project is still early-stage and the API may change as the library becomes more organised.
+This repository is an early public snapshot of the project. The code is still being organised, and the full library structure is being developed incrementally.
 
-At the moment, the repository includes:
+The project is not production-ready yet. APIs, package names, and examples may change as the implementation becomes cleaner.
 
-- Generic vector and matrix primitives
-- Matrix creation, copying, transposition, mapping, filling, and random initialisation
-- Xavier-style random matrix initialisation
-- Binary matrix loading for local dataset files
-- Tensor objects with data, gradients, operations, input tracking, and flags
-- A simple computation graph/program abstraction for forward and backward passes
-- Basic neural-network functions such as ReLU, Sigmoid, Softmax, Tanh, and Cross Entropy
-- A small MNIST-style linear classifier experiment in `main.go`
+## What I am building
 
-## Project structure
+The long-term goal is to build a small but understandable ML library that includes:
+
+- Vector and matrix primitives
+- Tensor objects
+- Basic tensor operations
+- Computation graph execution
+- Automatic differentiation
+- Activation functions
+- Loss functions
+- Simple optimisers
+- Small neural-network examples
+
+The purpose is not to compete with libraries like TensorFlow or PyTorch. The purpose is to learn what those libraries do internally by implementing the ideas directly in Go.
+
+## Why Go?
+
+I am using Go because it is simple, explicit, compiled, and good for understanding systems-level behaviour. Building ML concepts in Go forces me to think carefully about memory, data structures, APIs, and how the training process actually works.
+
+## Project direction
+
+The project is currently moving towards a cleaner library-style structure. The intended direction is:
 
 ```text
 .
-├── matrix/          # Matrix data structures and matrix utilities
-├── vector/          # Vector data structures and vector utilities
-├── tensor/          # Tensor objects, graph operations, and gradient computation
-├── nn/functions/    # Neural-network activation and loss functions
-├── types/           # Shared type constraints, flags, and operation types
-├── main.go          # Current MNIST-style training experiment
-└── go.mod
+├── matrix/          # Matrix data structures and operations
+├── vector/          # Vector data structures and operations
+├── tensor/          # Tensors, graph operations, and gradients
+├── nn/              # Neural-network functions, layers, and losses
+├── optim/           # Optimisers such as SGD or Adam
+├── examples/        # Small examples and experiments
+└── tests/           # Unit tests for core behaviour
 ```
 
-## Requirements
-
-- Go 1.18 or newer
-
-The module currently uses Go generics, so Go 1.18+ is required.
+Some of these packages may not exist yet in the public repository. They represent the direction the project is moving towards.
 
 ## Running the project
 
-From the root of the repository:
+The repository currently uses Go modules.
 
 ```bash
 go run .
 ```
 
-The current demo in `main.go` expects local MNIST-style data files inside a `data/` directory:
+Some experiments may require local data files that are not committed to the repository, especially dataset files such as MNIST exports. If an example expects a `data/` folder, those files need to be generated or added locally.
 
-```text
-data/train_images.mat
-data/train_labels.mat
-data/test_images.mat
-data/test_labels.mat
-```
+## Learning goals
 
-The `data/` folder is ignored by Git, so those files need to exist locally before running the MNIST experiment.
+This project is helping me understand:
 
-## Minimal example
-
-The current API can be used to build a tiny computation graph, run a forward pass, and compute gradients:
-
-```go
-package main
-
-import (
-    "fmt"
-
-    "ml/matrix"
-    functions "ml/nn/functions"
-    "ml/tensor"
-    "ml/types"
-)
-
-func main() {
-    inputData := matrix.NewMatrix[float64]([][]float64{
-        {1, 2, 3},
-    })
-
-    targetData := matrix.NewMatrix[float64]([][]float64{
-        {0, 0, 1},
-    })
-
-    input := tensor.NewTensor(&inputData)
-    target := tensor.NewTensor(&targetData)
-
-    weightsData := matrix.RandomXavier(3, 3)
-    weights := tensor.NewTensor(weightsData)
-    weights.WithGrad()
-    weights.AddFlag(types.RequiresGradFlag)
-    weights.AddFlag(types.ParameterFlag)
-
-    logits := tensor.MatMul(input, weights)
-    prediction := functions.Softmax(logits)
-    loss := functions.CrossEntropy(prediction, target)
-
-    program := tensor.ModelProgramCreate(loss)
-    program.Compute()
-    program.ComputeGrads()
-
-    fmt.Println("prediction:")
-    fmt.Println(prediction.Data)
-
-    fmt.Println("loss:")
-    fmt.Println(loss.Data)
-}
-```
-
-## What this project is helping me learn
-
-This library is being built to understand machine learning from the inside out, especially:
-
-- How vectors and matrices support neural-network calculations
-- How tensors store values and gradients
-- How operations form a computation graph
-- How a forward pass produces predictions and losses
-- How a backward pass propagates gradients
-- How parameter updates improve a model over time
-- How a simple classifier can be trained without relying on a full ML framework
+- How numerical data is represented with vectors, matrices, and tensors
+- How a forward pass moves data through a model
+- How losses measure prediction error
+- How gradients are calculated through backpropagation
+- How parameters are updated during training
+- How a simple neural network can be built without a full ML framework
+- How to structure a Go project as a reusable library
 
 ## Roadmap
 
-Possible next steps:
+Planned improvements:
 
-- Move experiments from `main.go` into an `examples/` directory
-- Add a cleaner public API for building models
-- Add reusable layers such as Linear/Dense
-- Add optimisers such as SGD, Momentum, and Adam
+- Push and organise the latest local code
+- Separate experiments from reusable library code
+- Create cleaner public APIs for tensors and models
+- Add reusable layers such as `Linear` or `Dense`
+- Add optimisers such as SGD and Adam
 - Add tests for matrix, tensor, and gradient operations
-- Add benchmarks for core matrix and tensor operations
-- Improve broadcasting and numerical stability
-- Add package-level documentation
+- Add examples for small datasets
+- Improve package documentation
 
 ## Disclaimer
 
-This is an educational project. It is useful for learning how machine learning systems work internally, but it is not yet a production-ready ML library.
+This is a work-in-progress learning project. The implementation is expected to change as I improve the design and continue learning how ML libraries are built internally.
